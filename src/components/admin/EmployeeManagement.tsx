@@ -17,10 +17,10 @@ import {
 import { useUsers } from "../../hooks/useUsers";
 import { Toast } from "../ui/Toast";
 import { Select } from "../ui/Select";
+import { useEmployeeForm } from "../../hooks/employee/useEmployeeForm";
 
 export function EmployeeManagement() {
   const [searchTerm, setSearchTerm] = useState("");
-  const [showForm, setShowForm] = useState(false);
   const [showPasswordInput, setShowPasswordInput] = useState({
     id: "",
     show: false,
@@ -29,15 +29,6 @@ export function EmployeeManagement() {
     message: string;
     type: "success" | "error";
   } | null>(null);
-
-  const [formData, setFormData] = useState({
-    id: "",
-    name: "",
-    email: "",
-    position: "",
-    role: "",
-  });
-
   const [newPassword, setNewPassword] = useState("");
 
   const {
@@ -50,6 +41,17 @@ export function EmployeeManagement() {
     adminChangePassword,
     deleteUserById,
   } = useUsers();
+
+  const {
+    isOpen: showForm,
+    formData,
+    isCreating,
+    isEditing,
+    openCreateForm,
+    openEditForm,
+    closeForm,
+    updateField,
+  } = useEmployeeForm();
 
   const employees = useMemo(
     () =>
@@ -75,19 +77,10 @@ export function EmployeeManagement() {
     return matchesSearch;
   });
 
-  const clearForm = () =>
-    setFormData({
-      id: "",
-      name: "",
-      email: "",
-      position: "",
-      role: "",
-    });
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      if (formData.id) {
+      if (isEditing) {
         await updateUser(formData.id, {
           name: formData.name,
           email: formData.email,
@@ -99,26 +92,26 @@ export function EmployeeManagement() {
           name: formData.name,
           email: formData.email,
           position: formData.position,
+          password: formData.password,
           role: formData.role,
           isActive: true,
         });
       }
 
-      setShowForm(false);
+      closeForm();
       setToast({
-        message: formData.id
+        message: isEditing
           ? "Funcionário atualizado com sucesso!"
           : "Funcionário criado com sucesso!",
         type: "success",
       });
-      clearForm();
       reload();
     } catch (error) {
       setToast({
         message:
           error instanceof Error
             ? error.message
-            : formData.id
+            : isEditing
             ? "Erro ao atualizar o funcionário"
             : "Erro ao criar funcionário",
         type: "error",
@@ -179,8 +172,7 @@ export function EmployeeManagement() {
     try {
       await deleteUserById(userId);
       setToast({
-        message: `Funcionário
-          deletado com sucesso!`,
+        message: `Funcionário deletado com sucesso!`,
         type: "success",
       });
       reload();
@@ -210,7 +202,7 @@ export function EmployeeManagement() {
           </h1>
           <p className="text-gray-600">Gerencie funcionários e permissões</p>
         </div>
-        <Button onClick={() => setShowForm(true)}>
+        <Button onClick={openCreateForm}>
           <Plus className="w-4 h-4 mr-2" />
           Adicionar Funcionário
         </Button>
@@ -239,65 +231,67 @@ export function EmployeeManagement() {
         <Card>
           <CardHeader>
             <h3 className="text-lg font-semibold text-gray-900">
-              Novo Funcionário
+              {isCreating ? "Novo Funcionário" : "Editar Funcionário"}
             </h3>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <Input
-                  type="name"
-                  label="Nome"
-                  value={formData.name}
-                  onChange={(e) =>
-                    setFormData({ ...formData, name: e.target.value })
-                  }
-                  required
-                />
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <Input
                   type="text"
-                  label="Cargo"
-                  value={formData.position}
-                  onChange={(e) =>
-                    setFormData({ ...formData, position: e.target.value })
-                  }
+                  label="Nome"
+                  value={formData.name}
+                  onChange={(e) => updateField("name", e.target.value)}
                   required
                 />
                 <Input
                   type="email"
                   label="Email"
                   value={formData.email}
-                  onChange={(e) =>
-                    setFormData({ ...formData, email: e.target.value })
-                  }
+                  onChange={(e) => updateField("email", e.target.value)}
                   required
                 />
+                <Input
+                  type="text"
+                  label="Cargo"
+                  value={formData.position}
+                  onChange={(e) => updateField("position", e.target.value)}
+                  required
+                />
+                {/* Campo de senha só aparece na criação */}
+                {isCreating && (
+                  <Input
+                    type="password"
+                    label="Senha"
+                    value={formData.password}
+                    onChange={(e) => updateField("password", e.target.value)}
+                    required
+                  />
+                )}
                 <Select
                   label="Função"
                   value={formData.role}
-                  onChange={(e) =>
-                    setFormData({ ...formData, role: e.target.value })
-                  }
+                  onChange={(e) => updateField("role", e.target.value)}
                   required
                 >
+                  <option value="">Selecione uma função</option>
                   <option value="ADMIN">Administrador</option>
                   <option value="EMPLOYEE">Funcionário</option>
                 </Select>
               </div>
 
               <div className="flex justify-end space-x-3">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => {
-                    setShowForm(false);
-                    clearForm();
-                  }}
-                >
+                <Button type="button" variant="outline" onClick={closeForm}>
                   Cancelar
                 </Button>
                 <Button type="submit" disabled={isLoading}>
-                  {isLoading ? "Criando..." : "Adicionar"}
+                  {isLoading
+                    ? isCreating
+                      ? "Criando..."
+                      : "Salvando..."
+                    : isCreating
+                    ? "Criar"
+                    : "Salvar"}
                 </Button>
               </div>
             </form>
@@ -368,7 +362,6 @@ export function EmployeeManagement() {
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Status
                     </th>
-
                     <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Ações
                     </th>
@@ -393,13 +386,13 @@ export function EmployeeManagement() {
                               </div>
                               <span
                                 className={`
-                inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium
-                ${
-                  employee.role === "ADMIN"
-                    ? "bg-purple-100 text-purple-800"
-                    : "bg-blue-100 text-blue-800"
-                }
-              `}
+                                  inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium
+                                  ${
+                                    employee.role === "ADMIN"
+                                      ? "bg-purple-100 text-purple-800"
+                                      : "bg-blue-100 text-blue-800"
+                                  }
+                                `}
                               >
                                 {employee.role === "ADMIN"
                                   ? "Admin"
@@ -430,7 +423,6 @@ export function EmployeeManagement() {
                           )}
                         </div>
                       </td>
-
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                         <div className="flex items-center justify-end space-x-2">
                           {showPasswordInput.show &&
@@ -438,8 +430,9 @@ export function EmployeeManagement() {
                             <form
                               onSubmit={() => handleUpdatePassword(employee.id)}
                             >
-                              <div className="flex ">
+                              <div className="flex">
                                 <Input
+                                  type="password"
                                   onChange={(e) =>
                                     setNewPassword(e.target.value)
                                   }
@@ -459,7 +452,7 @@ export function EmployeeManagement() {
                                   }}
                                   variant="ghost"
                                   size="sm"
-                                  type="submit"
+                                  type="button"
                                 >
                                   <X className="w-4 h-4" />
                                 </Button>
@@ -480,16 +473,7 @@ export function EmployeeManagement() {
                                 <KeyRound className="w-4 h-4" />
                               </Button>
                               <Button
-                                onClick={() => {
-                                  setFormData({
-                                    name: employee.name,
-                                    email: employee.email,
-                                    position: employee.position,
-                                    id: employee.id,
-                                    role: employee.role,
-                                  });
-                                  setShowForm(true);
-                                }}
+                                onClick={() => openEditForm(employee)}
                                 variant="ghost"
                                 size="sm"
                               >

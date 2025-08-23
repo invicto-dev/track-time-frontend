@@ -1,67 +1,135 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Card, CardHeader, CardContent } from "../ui/Card";
 import { Button } from "../ui/Button";
 import { Input } from "../ui/Input";
 import { Toast } from "../ui/Toast";
-import { Settings as SettingsIcon, Clock, Save, Plus } from "lucide-react";
-import { useSettings } from "../../hooks/useSettings";
-import { WorkRule } from "../../types";
+import { Settings as SettingsIcon, Clock, Edit, Save } from "lucide-react";
+import { useSettings } from "../../hooks/admin/useSettings";
+import { useWorkRulesForm } from "../../hooks/admin/useWorkRulesForm";
+import { useSettingsForm } from "../../hooks/admin/useSettingsForm";
 
 export function Settings() {
   const [activeTab, setActiveTab] = useState("work-rules");
-  const [showForm, setShowForm] = useState(false);
   const [toast, setToast] = useState<{
     message: string;
     type: "success" | "error" | "warning" | "info";
   } | null>(null);
 
-  const { workRules, createWorkRule, toggleRuleStatus, loading } =
-    useSettings();
+  const {
+    workRules,
+    systemSettings,
+    createWorkRule,
+    updateWorkRule,
+    saveSystemSettings,
+    toggleRuleStatus,
+    loading,
+  } = useSettings();
 
-  const [systemSettings, setSystemSettings] = useState({
-    companyName: "Minha Empresa LTDA",
-    timezone: "America/Sao_Paulo",
-    dateFormat: "DD/MM/YYYY",
-    timeFormat: "24h",
-    language: "pt-BR",
-    autoBackup: true,
-    emailNotifications: true,
-    smsNotifications: false,
-    geolocationRequired: true,
-    maxLocationRadius: 100,
-    allowManualAdjustments: false,
-    requireJustification: true,
-  });
+  const {
+    isOpen: showForm,
+    rulesFormData,
+    isCreating,
+    isEditing,
+    openEditForm,
+    closeForm,
+    updateField,
+  } = useWorkRulesForm();
 
-  const [newRule, setNewRule] = useState<WorkRule>({
-    name: "",
-    workDayStart: "08:00",
-    workDayEnd: "17:00",
-    breakDuration: 60,
-    lateToleranceMinutes: 15,
-    overtimeThreshold: 8,
-    weeklyHoursLimit: 44,
-    isActive: false,
-  });
+  const {
+    formData: settingsFormData,
+    hasChanges,
+    updateField: updateSettingsField,
+    validateForm,
+    resetToOriginal,
+  } = useSettingsForm();
+
+  useEffect(() => {
+    if (systemSettings) {
+      resetToOriginal(systemSettings);
+    }
+  }, [systemSettings]);
 
   const handleSubmitWorkRules = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newRule.name) return;
+    if (!rulesFormData.name) {
+      setToast({
+        message: "Nome da regra é obrigatório",
+        type: "error",
+      });
+      return;
+    }
 
     try {
-      await createWorkRule(newRule);
-      setShowForm(false);
-      setNewRule({
-        name: "",
-        workDayStart: "08:00",
-        workDayEnd: "17:00",
-        breakDuration: 60,
-        lateToleranceMinutes: 15,
-        overtimeThreshold: 8,
-        weeklyHoursLimit: 44,
-        isActive: false,
+      if (isEditing) {
+        await updateWorkRule(rulesFormData.id, {
+          name: rulesFormData.name,
+          workDayStart: rulesFormData.workDayStart,
+          workDayEnd: rulesFormData.workDayEnd,
+          breakDuration: rulesFormData.breakDuration,
+          lateToleranceMinutes: rulesFormData.lateToleranceMinutes,
+          overtimeThreshold: rulesFormData.overtimeThreshold,
+          weeklyHoursLimit: rulesFormData.weeklyHoursLimit,
+          isActive: rulesFormData.isActive,
+        });
+        setToast({
+          message: "Regra de trabalho atualizada com sucesso!",
+          type: "success",
+        });
+      } else {
+        await createWorkRule({
+          name: rulesFormData.name,
+          workDayStart: rulesFormData.workDayStart,
+          workDayEnd: rulesFormData.workDayEnd,
+          breakDuration: rulesFormData.breakDuration,
+          lateToleranceMinutes: rulesFormData.lateToleranceMinutes,
+          overtimeThreshold: rulesFormData.overtimeThreshold,
+          weeklyHoursLimit: rulesFormData.weeklyHoursLimit,
+          isActive: rulesFormData.isActive,
+        });
+        setToast({
+          message: "Regra de trabalho criada com sucesso!",
+          type: "success",
+        });
+      }
+      closeForm();
+    } catch (error) {
+      setToast({
+        message:
+          error instanceof Error
+            ? error.message
+            : isEditing
+            ? "Erro ao atualizar regra"
+            : "Erro ao criar regra",
+        type: "error",
       });
-    } catch (error) {}
+    }
+  };
+
+  const handleSaveSystemSettings = async () => {
+    const validation = validateForm();
+    if (!validation.isValid) {
+      setToast({
+        message: validation.errors[0],
+        type: "error",
+      });
+      return;
+    }
+
+    try {
+      await saveSystemSettings(settingsFormData);
+      setToast({
+        message: "Configurações salvas com sucesso!",
+        type: "success",
+      });
+    } catch (error) {
+      setToast({
+        message:
+          error instanceof Error
+            ? error.message
+            : "Erro ao salvar configurações",
+        type: "error",
+      });
+    }
   };
 
   const tabs = [
@@ -114,132 +182,124 @@ export function Settings() {
       {/* Work Rules Tab */}
       {activeTab === "work-rules" && (
         <div className="space-y-6">
+          {/* Work Rules Form */}
+          {showForm && (
+            <Card>
+              <CardHeader>
+                <h3 className="text-lg font-semibold text-gray-900">
+                  {isCreating
+                    ? "Nova Regra de Trabalho"
+                    : "Editar Regra de Trabalho"}
+                </h3>
+              </CardHeader>
+              <CardContent>
+                <form onSubmit={handleSubmitWorkRules}>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <Input
+                      label="Nome da Regra"
+                      value={rulesFormData.name}
+                      onChange={(e) => updateField("name", e.target.value)}
+                      placeholder="Ex: Horário Comercial"
+                      required
+                    />
+
+                    <div className="grid grid-cols-2 gap-2">
+                      <Input
+                        type="time"
+                        label="Início do Expediente"
+                        value={rulesFormData.workDayStart}
+                        onChange={(e) =>
+                          updateField("workDayStart", e.target.value)
+                        }
+                      />
+                      <Input
+                        type="time"
+                        label="Fim do Expediente"
+                        value={rulesFormData.workDayEnd}
+                        onChange={(e) =>
+                          updateField("workDayEnd", e.target.value)
+                        }
+                      />
+                    </div>
+
+                    <Input
+                      type="number"
+                      label="Duração do Intervalo (minutos)"
+                      value={rulesFormData.breakDuration}
+                      onChange={(e) =>
+                        updateField("breakDuration", parseInt(e.target.value))
+                      }
+                    />
+
+                    <Input
+                      type="number"
+                      label="Tolerância de Atraso (minutos)"
+                      value={rulesFormData.lateToleranceMinutes}
+                      onChange={(e) =>
+                        updateField(
+                          "lateToleranceMinutes",
+                          parseInt(e.target.value)
+                        )
+                      }
+                    />
+
+                    <Input
+                      type="number"
+                      label="Limite para Hora Extra (horas)"
+                      value={rulesFormData.overtimeThreshold}
+                      onChange={(e) =>
+                        updateField(
+                          "overtimeThreshold",
+                          parseInt(e.target.value)
+                        )
+                      }
+                    />
+
+                    <Input
+                      type="number"
+                      label="Limite Semanal (horas)"
+                      value={rulesFormData.weeklyHoursLimit}
+                      onChange={(e) =>
+                        updateField(
+                          "weeklyHoursLimit",
+                          parseInt(e.target.value)
+                        )
+                      }
+                    />
+                  </div>
+
+                  <div className="flex justify-end space-x-3 mt-6">
+                    <Button type="button" variant="outline" onClick={closeForm}>
+                      Cancelar
+                    </Button>
+                    <Button type="submit" disabled={loading}>
+                      {loading
+                        ? isCreating
+                          ? "Criando..."
+                          : "Salvando..."
+                        : isCreating
+                        ? "Criar"
+                        : "Salvar"}
+                    </Button>
+                  </div>
+                </form>
+              </CardContent>
+            </Card>
+          )}
+
           {/* Current Rules */}
           <Card>
             <CardHeader className="flex justify-between">
               <h3 className="text-lg font-semibold text-gray-900">
                 Regras de Trabalho Ativas
               </h3>
-              <Button onClick={() => setShowForm(true)}>
+              {/* <Button onClick={openCreateForm}>
                 <Plus className="w-4 h-4 mr-2" />
                 Adicionar Regra de Trabalho
-              </Button>
+              </Button> */}
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {/* New Rule Form */}
-                {showForm && (
-                  <Card>
-                    <CardHeader>
-                      <h3 className="text-lg font-semibold text-gray-900">
-                        Nova Regra de Trabalho
-                      </h3>
-                    </CardHeader>
-                    <CardContent>
-                      <form onSubmit={handleSubmitWorkRules}>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          <Input
-                            label="Nome da Regra"
-                            value={newRule.name || ""}
-                            onChange={(e) =>
-                              setNewRule({ ...newRule, name: e.target.value })
-                            }
-                            placeholder="Ex: Horário Comercial"
-                            required
-                          />
-
-                          <div className="grid grid-cols-2 gap-2">
-                            <Input
-                              type="time"
-                              label="Início do Expediente"
-                              value={newRule.workDayStart || "08:00"}
-                              onChange={(e) =>
-                                setNewRule({
-                                  ...newRule,
-                                  workDayStart: e.target.value,
-                                })
-                              }
-                            />
-                            <Input
-                              type="time"
-                              label="Fim do Expediente"
-                              value={newRule.workDayEnd || "17:00"}
-                              onChange={(e) =>
-                                setNewRule({
-                                  ...newRule,
-                                  workDayEnd: e.target.value,
-                                })
-                              }
-                            />
-                          </div>
-
-                          <Input
-                            type="number"
-                            label="Duração do Intervalo (minutos)"
-                            value={newRule.breakDuration || 60}
-                            onChange={(e) =>
-                              setNewRule({
-                                ...newRule,
-                                breakDuration: parseInt(e.target.value),
-                              })
-                            }
-                          />
-
-                          <Input
-                            type="number"
-                            label="Tolerância de Atraso (minutos)"
-                            value={newRule.lateToleranceMinutes || 15}
-                            onChange={(e) =>
-                              setNewRule({
-                                ...newRule,
-                                lateToleranceMinutes: parseInt(e.target.value),
-                              })
-                            }
-                          />
-
-                          <Input
-                            type="number"
-                            label="Limite para Hora Extra (horas)"
-                            value={newRule.overtimeThreshold || 8}
-                            onChange={(e) =>
-                              setNewRule({
-                                ...newRule,
-                                overtimeThreshold: parseInt(e.target.value),
-                              })
-                            }
-                          />
-
-                          <Input
-                            type="number"
-                            label="Limite Semanal (horas)"
-                            value={newRule.weeklyHoursLimit || 44}
-                            onChange={(e) =>
-                              setNewRule({
-                                ...newRule,
-                                weeklyHoursLimit: parseInt(e.target.value),
-                              })
-                            }
-                          />
-                        </div>
-
-                        <div className="flex justify-end space-x-3 mt-4">
-                          <Button
-                            type="button"
-                            variant="outline"
-                            onClick={() => {
-                              setShowForm(false);
-                            }}
-                          >
-                            Cancelar
-                          </Button>
-                          <Button type="submit" disabled={loading}>
-                            {loading ? "Criando..." : "Adicionar"}
-                          </Button>
-                        </div>
-                      </form>
-                    </CardContent>
-                  </Card>
-                )}
                 {workRules.map((rule) => (
                   <div
                     key={rule.id}
@@ -281,14 +341,18 @@ export function Settings() {
                     </div>
                     <div className="flex items-center space-x-2">
                       <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => openEditForm(rule)}
+                      >
+                        <Edit className="w-4 h-4" />
+                      </Button>
+                      <Button
                         variant="outline"
                         size="sm"
                         onClick={() => toggleRuleStatus(rule.id as string)}
                       >
                         {rule.isActive ? "Desativar" : "Ativar"}
-                      </Button>
-                      <Button variant="ghost" size="sm">
-                        Editar
                       </Button>
                     </div>
                   </div>
@@ -303,21 +367,24 @@ export function Settings() {
       {activeTab === "system" && (
         <div className="space-y-6">
           <Card>
-            <CardHeader>
+            <CardHeader className="flex justify-between">
               <h3 className="text-lg font-semibold text-gray-900">
                 Configurações Gerais
               </h3>
+              {hasChanges && (
+                <Button onClick={handleSaveSystemSettings} disabled={loading}>
+                  <Save className="w-4 h-4 mr-2" />
+                  {loading ? "Salvando..." : "Salvar Alterações"}
+                </Button>
+              )}
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <Input
                   label="Nome da Empresa"
-                  value={systemSettings.companyName}
+                  value={settingsFormData.companyName}
                   onChange={(e) =>
-                    setSystemSettings({
-                      ...systemSettings,
-                      companyName: e.target.value,
-                    })
+                    updateSettingsField("companyName", e.target.value)
                   }
                 />
 
@@ -326,12 +393,9 @@ export function Settings() {
                     Fuso Horário
                   </label>
                   <select
-                    value={systemSettings.timezone}
+                    value={settingsFormData.timezone}
                     onChange={(e) =>
-                      setSystemSettings({
-                        ...systemSettings,
-                        timezone: e.target.value,
-                      })
+                      updateSettingsField("timezone", e.target.value)
                     }
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   >
@@ -348,12 +412,9 @@ export function Settings() {
                     Formato de Data
                   </label>
                   <select
-                    value={systemSettings.dateFormat}
+                    value={settingsFormData.dateFormat}
                     onChange={(e) =>
-                      setSystemSettings({
-                        ...systemSettings,
-                        dateFormat: e.target.value,
-                      })
+                      updateSettingsField("dateFormat", e.target.value)
                     }
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   >
@@ -368,12 +429,9 @@ export function Settings() {
                     Formato de Hora
                   </label>
                   <select
-                    value={systemSettings.timeFormat}
+                    value={settingsFormData.timeFormat}
                     onChange={(e) =>
-                      setSystemSettings({
-                        ...systemSettings,
-                        timeFormat: e.target.value,
-                      })
+                      updateSettingsField("timeFormat", e.target.value)
                     }
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   >
@@ -405,28 +463,27 @@ export function Settings() {
                   <label className="relative inline-flex items-center cursor-pointer">
                     <input
                       type="checkbox"
-                      checked={systemSettings.geolocationRequired}
+                      checked={settingsFormData.geolocationRequired}
                       onChange={(e) =>
-                        setSystemSettings({
-                          ...systemSettings,
-                          geolocationRequired: e.target.checked,
-                        })
+                        updateSettingsField(
+                          "geolocationRequired",
+                          e.target.checked
+                        )
                       }
                       className="sr-only peer"
                     />
                     <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
                   </label>
                 </div>
-
                 <Input
                   type="number"
                   label="Raio Máximo de Localização (metros)"
-                  value={systemSettings.maxLocationRadius}
+                  value={settingsFormData.maxLocationRadius}
                   onChange={(e) =>
-                    setSystemSettings({
-                      ...systemSettings,
-                      maxLocationRadius: parseInt(e.target.value),
-                    })
+                    updateSettingsField(
+                      "maxLocationRadius",
+                      parseInt(e.target.value)
+                    )
                   }
                   helperText="Distância máxima permitida do local de trabalho"
                 />
@@ -434,207 +491,6 @@ export function Settings() {
             </CardContent>
           </Card>
         </div>
-      )}
-
-      {/* Notifications Tab */}
-      {activeTab === "notifications" && (
-        <Card>
-          <CardHeader>
-            <h3 className="text-lg font-semibold text-gray-900">
-              Configurações de Notificação
-            </h3>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="font-medium text-gray-900">
-                    Notificações por Email
-                  </p>
-                  <p className="text-sm text-gray-600">
-                    Receber alertas e relatórios por email
-                  </p>
-                </div>
-                <label className="relative inline-flex items-center cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={systemSettings.emailNotifications}
-                    onChange={(e) =>
-                      setSystemSettings({
-                        ...systemSettings,
-                        emailNotifications: e.target.checked,
-                      })
-                    }
-                    className="sr-only peer"
-                  />
-                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
-                </label>
-              </div>
-
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="font-medium text-gray-900">
-                    Notificações por SMS
-                  </p>
-                  <p className="text-sm text-gray-600">
-                    Receber alertas críticos por SMS
-                  </p>
-                </div>
-                <label className="relative inline-flex items-center cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={systemSettings.smsNotifications}
-                    onChange={(e) =>
-                      setSystemSettings({
-                        ...systemSettings,
-                        smsNotifications: e.target.checked,
-                      })
-                    }
-                    className="sr-only peer"
-                  />
-                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
-                </label>
-              </div>
-
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="font-medium text-gray-900">Backup Automático</p>
-                  <p className="text-sm text-gray-600">
-                    Realizar backup diário dos dados
-                  </p>
-                </div>
-                <label className="relative inline-flex items-center cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={systemSettings.autoBackup}
-                    onChange={(e) =>
-                      setSystemSettings({
-                        ...systemSettings,
-                        autoBackup: e.target.checked,
-                      })
-                    }
-                    className="sr-only peer"
-                  />
-                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
-                </label>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Security Tab */}
-      {activeTab === "security" && (
-        <Card>
-          <CardHeader>
-            <h3 className="text-lg font-semibold text-gray-900">
-              Configurações de Segurança
-            </h3>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="font-medium text-gray-900">
-                    Permitir Ajustes Manuais
-                  </p>
-                  <p className="text-sm text-gray-600">
-                    Administradores podem ajustar registros de ponto
-                  </p>
-                </div>
-                <label className="relative inline-flex items-center cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={systemSettings.allowManualAdjustments}
-                    onChange={(e) =>
-                      setSystemSettings({
-                        ...systemSettings,
-                        allowManualAdjustments: e.target.checked,
-                      })
-                    }
-                    className="sr-only peer"
-                  />
-                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
-                </label>
-              </div>
-
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="font-medium text-gray-900">
-                    Exigir Justificativa
-                  </p>
-                  <p className="text-sm text-gray-600">
-                    Obrigar justificativa para faltas e atrasos
-                  </p>
-                </div>
-                <label className="relative inline-flex items-center cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={systemSettings.requireJustification}
-                    onChange={(e) =>
-                      setSystemSettings({
-                        ...systemSettings,
-                        requireJustification: e.target.checked,
-                      })
-                    }
-                    className="sr-only peer"
-                  />
-                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
-                </label>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Integrations Tab */}
-      {activeTab === "integrations" && (
-        <Card>
-          <CardHeader>
-            <h3 className="text-lg font-semibold text-gray-900">Integrações</h3>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <div className="p-4 border border-gray-200 rounded-lg">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="font-medium text-gray-900">
-                      Folha de Pagamento
-                    </p>
-                    <p className="text-sm text-gray-600">
-                      Integração com sistema de folha de pagamento
-                    </p>
-                  </div>
-                  <Button variant="outline">Configurar</Button>
-                </div>
-              </div>
-
-              <div className="p-4 border border-gray-200 rounded-lg">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="font-medium text-gray-900">ERP</p>
-                    <p className="text-sm text-gray-600">
-                      Sincronização com sistema ERP
-                    </p>
-                  </div>
-                  <Button variant="outline">Configurar</Button>
-                </div>
-              </div>
-
-              <div className="p-4 border border-gray-200 rounded-lg">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="font-medium text-gray-900">API Externa</p>
-                    <p className="text-sm text-gray-600">
-                      Integração via API REST
-                    </p>
-                  </div>
-                  <Button variant="outline">Configurar</Button>
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
       )}
     </div>
   );

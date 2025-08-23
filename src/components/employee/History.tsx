@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "../../contexts/AuthContext";
-import { useTimeTracking } from "../../hooks/useTimeTracking";
+import { useTimeTracking } from "../../hooks/employee/useTimeTracking";
 import { Card, CardHeader, CardContent } from "../ui/Card";
 import { Button } from "../ui/Button";
 import { Input } from "../ui/Input";
@@ -19,6 +19,7 @@ import {
   AlertCircle,
 } from "lucide-react";
 import { monthNames } from "../../constains";
+import { formatHoursToHoursAndMinutes } from "../../utils/formatTime";
 
 export function History() {
   const { user } = useAuth();
@@ -31,11 +32,6 @@ export function History() {
     type: "success" | "error" | "warning" | "info";
   } | null>(null);
 
-  console.log(user);
-
-  console.log(records);
-
-  // Carregar registros quando mudar mês/ano
   useEffect(() => {
     if (user && loadRecords) {
       const startDate = new Date(selectedYear, selectedMonth, 1);
@@ -266,7 +262,7 @@ export function History() {
               <div className="ml-4">
                 <p className="text-sm text-gray-600">Total de Horas</p>
                 <p className="text-2xl font-bold text-gray-900">
-                  {totalHours.toFixed(1)}h
+                  {formatHoursToHoursAndMinutes(totalHours)}
                 </p>
               </div>
             </div>
@@ -298,7 +294,7 @@ export function History() {
               <div className="ml-4">
                 <p className="text-sm text-gray-600">Média Diária</p>
                 <p className="text-2xl font-bold text-gray-900">
-                  {averageHours.toFixed(1)}h
+                  {formatHoursToHoursAndMinutes(averageHours)}
                 </p>
               </div>
             </div>

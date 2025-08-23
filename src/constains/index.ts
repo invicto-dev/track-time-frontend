@@ -1,12 +1,11 @@
 import { CheckCircle, Clock, Coffee, Play } from "lucide-react";
 
 export const ESTABLISHMENT_LOCATION = {
-  latitude: -1.760456533902719,
-  longitude: -55.867114367886245,
+  latitude: -1.762920,
+  longitude: -55.856323,
 };
 
-
-export const ALLOWED_RADIUS_METERS = 2100; // 100 metros
+export const ALLOWED_RADIUS_METERS = 600; // 100 metros
 
 export const getDistanceFromLatLonInMeters = (
   lat1: number,

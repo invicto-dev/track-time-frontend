@@ -1,16 +1,21 @@
-import React, { useState } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { AuthProvider, useAuth } from './contexts/AuthContext';
-import { Layout } from './components/Layout';
-import { Login } from './components/Login';
-import { EmployeeDashboard } from './components/employee/Dashboard';
-import { History } from './components/employee/History';
-import { Justifications } from './components/employee/Justifications';
-import { AdminDashboard } from './components/admin/Dashboard';
-import { EmployeeManagement } from './components/admin/EmployeeManagement';
-import { Reports } from './components/admin/Reports';
-import { Settings } from './components/admin/Settings';
-import { Approvals } from './components/admin/Approvals';
+import {
+  BrowserRouter as Router,
+  Routes,
+  Route,
+  Navigate,
+} from "react-router-dom";
+import { AuthProvider, useAuth } from "./contexts/AuthContext";
+import { Layout } from "./components/Layout";
+import { Login } from "./components/Login";
+import { EmployeeDashboard } from "./components/employee/Dashboard";
+import { History } from "./components/employee/History";
+import { Justifications } from "./components/employee/Justifications";
+import { AdminDashboard } from "./components/admin/Dashboard";
+import { EmployeeManagement } from "./components/admin/EmployeeManagement";
+import { Reports } from "./components/admin/Reports";
+import { Settings } from "./components/admin/Settings";
+import { Approvals } from "./components/admin/Approvals";
+import { SidebarProvider } from "./contexts/SideBarContext";
 
 function AppContent() {
   const { user } = useAuth();
@@ -19,12 +24,11 @@ function AppContent() {
     return <Login />;
   }
 
-
   return (
     <Router>
       <Layout>
         <Routes>
-          {user.role === 'ADMIN' ? (
+          {user.role === "ADMIN" ? (
             <>
               <Route path="/" element={<AdminDashboard />} />
               <Route path="/admin/employees" element={<EmployeeManagement />} />
@@ -50,7 +54,9 @@ function AppContent() {
 function App() {
   return (
     <AuthProvider>
-      <AppContent />
+      <SidebarProvider>
+        <AppContent />
+      </SidebarProvider>
     </AuthProvider>
   );
 }

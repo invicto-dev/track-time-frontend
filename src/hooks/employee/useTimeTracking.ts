@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
-import { TimeRecord, TimeEntry, User } from "../types";
-import { apiFetch } from "../contexts/AuthContext";
+import { TimeRecord, TimeEntry, User } from "../../types";
+import { apiFetch } from "../../contexts/AuthContext";
 
 export function useTimeTracking(user: User | null) {
   const [currentRecord, setCurrentRecord] = useState<TimeRecord | null>(null);

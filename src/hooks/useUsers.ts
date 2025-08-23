@@ -16,6 +16,7 @@ export interface User {
 export interface UserData {
   name?: string;
   email?: string;
+  password?: string;
   position?: string;
   role?: string;
   isActive?: boolean;
@@ -84,6 +85,7 @@ export function useUsers() {
   // Criar usuario
   const createUser = async (userData: UserData): Promise<User> => {
     setIsLoading(true);
+    console.log(userData)
     try {
       const response = await apiFetch("/users", {
         method: "POST",

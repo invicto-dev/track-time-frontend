@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "../../contexts/AuthContext";
-import { useTimeTracking } from "../../hooks/useTimeTracking";
+import { useTimeTracking } from "../../hooks/employee/useTimeTracking";
 import { useGeolocation } from "../../hooks/useGeolocation";
 import { Card, CardHeader, CardContent } from "../ui/Card";
 import { Button } from "../ui/Button";
@@ -21,6 +21,10 @@ import {
   ALLOWED_RADIUS_METERS,
   statusConfig,
 } from "../../constains";
+import {
+  formatHoursToHoursAndMinutes,
+  formatMinutesToHoursAndMinutes,
+} from "../../utils/formatTime";
 
 export function EmployeeDashboard() {
   const { user } = useAuth();
@@ -44,6 +48,8 @@ export function EmployeeDashboard() {
 
     return () => clearInterval(timer);
   }, []);
+
+  console.log(currentRecord);
 
   // Função para determinar o status atual baseado nos registros
   const getCurrentStatus = () => {
@@ -176,7 +182,7 @@ export function EmployeeDashboard() {
               <div className="ml-4">
                 <p className="text-sm text-gray-600">Horas Hoje</p>
                 <p className="text-2xl font-bold text-gray-900">
-                  {todayHours.toFixed(1)}h
+                  {formatHoursToHoursAndMinutes(todayHours)}
                 </p>
               </div>
             </div>
@@ -192,7 +198,7 @@ export function EmployeeDashboard() {
               <div className="ml-4">
                 <p className="text-sm text-gray-600">Horas Semana</p>
                 <p className="text-2xl font-bold text-gray-900">
-                  {weeklyHours.toFixed(1)}h
+                  {formatHoursToHoursAndMinutes(weeklyHours)}
                 </p>
               </div>
             </div>
@@ -303,7 +309,10 @@ export function EmployeeDashboard() {
           <CardContent>
             <div className="space-y-4">
               {currentRecord.entries.map((entry, index) => (
-                <div key={`${index}-${entry.id}`} className="flex items-center space-x-4">
+                <div
+                  key={`${index}-${entry.id}`}
+                  className="flex items-center space-x-4"
+                >
                   <div className="flex-shrink-0">
                     <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
                       {entry.type === "CLOCK_IN" && (
@@ -328,7 +337,10 @@ export function EmployeeDashboard() {
                           {entry.type === "BREAK_IN" && "Fim do Intervalo"}
                           {entry.isLate && (
                             <span className="ml-2 text-xs bg-red-100 text-red-800 px-2 py-1 rounded">
-                              Atraso: {entry.lateDuration}min
+                              Atraso:{" "}
+                              {formatMinutesToHoursAndMinutes(
+                                entry.lateDuration || 0
+                              )}
                             </span>
                           )}
                         </p>
@@ -392,7 +404,7 @@ export function EmployeeDashboard() {
                       </p>
                       <p className="text-sm text-gray-600">
                         {record.entries.length} registros •{" "}
-                        {record.totalHours.toFixed(1)}h trabalhadas
+                        {formatHoursToHoursAndMinutes(record.totalHours)}
                       </p>
                     </div>
                     <div

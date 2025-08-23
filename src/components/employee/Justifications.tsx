@@ -262,7 +262,7 @@ export function Justifications() {
                 />
               </div>
 
-              <div>
+              {/* <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Anexos (opcional)
                 </label>
@@ -296,7 +296,7 @@ export function Justifications() {
                     </p>
                   </div>
                 )}
-              </div>
+              </div> */}
 
               <div className="flex justify-end space-x-3">
                 <Button

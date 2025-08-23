@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
-import { apiFetch } from "../contexts/AuthContext";
-import { WorkRule } from "../types";
+import { apiFetch } from "../../contexts/AuthContext";
+import { WorkRule } from "../../types";
 
 export function useSettings() {
   const [workRules, setWorkRules] = useState<WorkRule[]>([]);
