@@ -20,6 +20,8 @@ import {
 } from "lucide-react";
 import { monthNames } from "../../constains";
 import { formatHoursToHoursAndMinutes } from "../../utils/formatTime";
+import { generateTimeRecordPDF } from "../../utils/pdfGenerator";
+import { User } from "../../types";
 
 export function History() {
   const { user } = useAuth();
@@ -87,6 +89,14 @@ export function History() {
       default:
         return type;
     }
+  };
+
+  const handleGeneratePDF = () => {
+    generateTimeRecordPDF(
+      user as User,
+      filteredRecords,
+      monthNames[selectedMonth]
+    );
   };
 
   const exportData = () => {
@@ -194,13 +204,20 @@ export function History() {
             Visualize e exporte seu histórico de ponto
           </p>
         </div>
-        <Button
-          onClick={exportData}
-          disabled={filteredRecords.length === 0 || isLoading}
-        >
-          <Download className="w-4 h-4 mr-2" />
-          Exportar CSV
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            onClick={exportData}
+            disabled={filteredRecords.length === 0 || isLoading}
+          >
+            Exportar CSV
+          </Button>
+          <Button
+            disabled={filteredRecords.length === 0 || isLoading}
+            onClick={handleGeneratePDF}
+          >
+            Exportar PDF
+          </Button>
+        </div>
       </div>
 
       {/* Filters */}
